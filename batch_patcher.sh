@@ -22,7 +22,7 @@ echo "Compile log" > $compile_log
 echo "===========================================================" >> $compile_log
 
 #
-# Is patch file?
+# Is a patch file?
 # $1: the specified file
 #
 is_patch()
@@ -30,7 +30,7 @@ is_patch()
     file=$1
     
     #
-    # $file is an patch file, in normal case, the patch name with
+    # $file is a patch file, in normal case, the patch name with
     # ".patch" or ".diff" as suffix
     #
     if [ -f $file ]; then
@@ -134,9 +134,8 @@ traverse_regular_files()
                 continue
             fi
             do_patch $file
-            if [ $? -eq 2 ]; then
-                echo "Failed to compile after applying $file"
-                echo "Continue to apply the next patches?[Y] "
+            if [ $? -ne 0 ]; then
+                echo "Failed to patch $file, continue?[Y] "
                 read go
                 case $go in
                     yes|y)
@@ -149,8 +148,24 @@ traverse_regular_files()
                         continue
                         ;;
                 esac
-                
             fi
+#            if [ $? -eq 2 ]; then
+#                echo "Failed to compile after applying $file"
+#                echo "Continue to apply the next patches?[Y] "
+#                read go
+#                case $go in
+#                    yes|y)
+#                        continue
+#                        ;;
+#                    no|n)
+#                        exit 1
+#                        ;;
+#                    *)
+#                        continue
+#                        ;;
+#                esac
+#                
+#            fi
             continue
         fi
 
@@ -224,8 +239,8 @@ do_patch()
     #
     echo "[info  ] Change to $cd_path"
     cd $cd_path
-    echo "[cmd   ] $PWD: patch -p1 < $patch_file"
-    patch -p1 < $patch_file
+    echo "[cmd   ] $PWD: git am $patch_file"
+    git am $patch_file
     if [ $? -eq 0 ]; then
 	cd -
         let success_count=success_count+1
@@ -253,40 +268,6 @@ do_patch()
     return 0
 }
 
-#
-# Parse root directory that patch live in, and apply the
-# patch file directly, and unzip the tar file
-# $1: the root directory
-#
-#parse_root_directory()
-#{
-#    for file in $patch_dir/*; do
-#        if [[ $file = *.zip ]]; then
-#            echo "[zip   ] $file"
-#	    echo "[cmd   ] Extract $file to temp/"
-#            unzip $file -d $patch_dir/temp > /dev/null
-
-#            # Traversal regular files in zip
-#            traverse_regular_files $patch_dir/temp
-#            rm -r $patch_dir/temp/* # Remove the files from temp
-#        else
-# patch file check
-#            is_patch $file
-#            if [ $? -eq 0 ]; then
-#                do_patch $file
-#                continue
-#            fi
-#        fi
-
-#
-# Unknown file
-#
-#        echo "[info  ] Unknown $file, skip"
-
-#    done
-#}
-
-#parse_root_directory $patch_dir
 traverse_regular_files $patch_dir
 
 echo "===========================================================" >> $success_list
