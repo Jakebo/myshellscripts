@@ -9,7 +9,7 @@ fi
 
 check_file()
 {
-    files=$1
+    files=$@
     
     for f in $files; do
         if [ ! -f $f ]; then
@@ -23,7 +23,7 @@ check_file()
 
 update_file()
 {
-    files=$1
+    files=$@
     
     for f in $files; do
         echo "sudo fastboot flash ${partitionMap[$f]} $f"
