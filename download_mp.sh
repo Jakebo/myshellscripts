@@ -1,6 +1,6 @@
 #!/bin/bash
 
-declare -r -A partitionMap=(["emmc_appsboot.mbn"]="aboot" ["boot.img"]="boot" ["system.img"]="system" ["userdata.img"]="userdata" ["persist.img"]="persist" ["recovery.img"]="recovery" ["cache.img"]="cache" ["IPSM.img"]="IPSM" ["splash.img"]="splash")
+declare -r -A partitionMap=(["NON-HLOS.bin"]="modem" ["rpm.mbn"]="rpm" ["sbl1.mbn"]="sbl1" ["tz.mbn"]="tz")
 
 updateFile=$@
 if [ ${#updateFile} -eq 0 ]; then

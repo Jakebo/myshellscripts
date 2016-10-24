@@ -6,4 +6,4 @@ if [ $# -lt 1 ]; then
     exit 1
 fi
 
-scp 199.63.152.191:/home/jakebo/$1 .
+scp ch3uu0003.honeywell.com:/home/jakebo/$1 .
