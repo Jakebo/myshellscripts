@@ -1,0 +1,129 @@
+diff --git a/arch/arm/configs/msm8916_defconfig b/arch/arm/configs/msm8916_defconfig
+index e774652..023f11b 100755
+--- a/arch/arm/configs/msm8916_defconfig
++++ b/arch/arm/configs/msm8916_defconfig
+@@ -615,4 +615,5 @@ CONFIG_MSM_PERFORMANCE=y
+ CONFIG_MSM_CORE_CTL_HELPER=y
+ CONFIG_UID_CPUTIME=y
+ CONFIG_MACH_HSM8916=y
++CONFIG_HSM_CUSTOM_IOCTL=y
+ CONFIG_BQ27541_TEST_ENABLE=y
+diff --git a/arch/arm/mach-msm/Kconfig b/arch/arm/mach-msm/Kconfig
+index 66c2b45..b1bc114 100644
+--- a/arch/arm/mach-msm/Kconfig
++++ b/arch/arm/mach-msm/Kconfig
+@@ -357,6 +357,7 @@ config MACH_HSM8916
+     bool "HSM8916"
+     depends on ARCH_MSM8916
+     select HSM_COUNTERS
++    select HSM_CUSTOM_IOCTL
+     default n
+     help
+         Support for the Honeywell boards based on HSM8916(msm8916) architecture..
+@@ -368,6 +369,13 @@ config HSM_COUNTERS
+ 	help
+ 	  Support Honeywell lifetime counter framework
+ 
++config HSM_CUSTOM_IOCTL
++        bool "Honeywell Custom Ioctl support"
++        default n
++	help
++	  Support a custom ioctl driver in kernel that can be used by Honeywell SDK
++
++
+ config MSM_KRAIT_TBB_ABORT_HANDLER
+ 	bool "Krait TBB/TBH data abort handler"
+ 	depends on ARCH_MSM_KRAIT
+diff --git a/arch/arm/mach-msm/Makefile b/arch/arm/mach-msm/Makefile
+index bcc4196..8144f16 100644
+--- a/arch/arm/mach-msm/Makefile
++++ b/arch/arm/mach-msm/Makefile
+@@ -72,5 +72,6 @@ obj-$(CONFIG_MSM_SMCMOD) += smcmod.o
+ obj-$(CONFIG_ARCH_MSM8974) += msm_mpmctr.o
+ 
+ obj-$(CONFIG_PERFMAP) += perfmap.o
++obj-$(CONFIG_HSM_CUSTOM_IOCTL) += hsm8x74-custom-ioctl.o
+ 
+ obj-y += hsm8x74_keyremap.o
+diff --git a/drivers/platform/msm/qpnp-power-on.c b/drivers/platform/msm/qpnp-power-on.c
+index a7c0e6a..663b29b 100644
+--- a/drivers/platform/msm/qpnp-power-on.c
++++ b/drivers/platform/msm/qpnp-power-on.c
+@@ -438,6 +438,49 @@ int qpnp_pon_is_warm_reset(void)
+ }
+ EXPORT_SYMBOL(qpnp_pon_is_warm_reset);
+ 
++#ifdef CONFIG_MACH_HSM8916
++int qpnp_get_pon_reason(char *buf, int buf_size)
++{
++    struct qpnp_pon *pon = sys_reset_dev;
++    int rc, index, size;
++    u8 pon_sts = 0;
++    char pon_reason[200];
++
++    if (!pon)
++        return -EPROBE_DEFER;
++
++    /* PON reason */
++    rc = spmi_ext_register_readl(pon->spmi->ctrl, pon->spmi->sid,
++            QPNP_PON_REASON1(pon->base), &pon_sts, 1);
++    if (rc) {
++        dev_err(&pon->spmi->dev, "Unable to read PON_REASON1 reg\n");
++        return rc;
++    }
++    index = ffs(pon_sts);
++    if (index >= ARRAY_SIZE(qpnp_pon_reason) || index < 0)
++        index = 0;
++    if (index)
++        strcpy(pon_reason, qpnp_pon_reason[index-1]);
++    else
++        strcpy(pon_reason, "Unknown");
++
++    cold_boot = !qpnp_pon_is_warm_reset();
++    if (cold_boot)
++        strcat(pon_reason, ":cold");
++    else
++        strcat(pon_reason, ":warm");
++
++    size = strlen(pon_reason) + 1;
++    if (buf_size > size){
++        strcpy(buf, pon_reason);
++        return size;
++    }
++
++    return -EINVAL;
++}
++EXPORT_SYMBOL(qpnp_get_pon_reason);
++#endif
++
+ /**
+  * qpnp_pon_wd_config - Disable the wd in a warm reset.
+  * @enable: to enable or disable the PON watch dog
+diff --git a/include/linux/qpnp/power-on.h b/include/linux/qpnp/power-on.h
+index db18f76..21b1d72 100644
+--- a/include/linux/qpnp/power-on.h
++++ b/include/linux/qpnp/power-on.h
+@@ -62,6 +62,10 @@ int qpnp_pon_system_pwr_off(enum pon_power_off_type type);
+ int qpnp_pon_is_warm_reset(void);
+ int qpnp_pon_trigger_config(enum pon_trigger_source pon_src, bool enable);
+ int qpnp_pon_wd_config(bool enable);
++int qpnp_pon_wd_config(bool enable);
++#ifdef CONFIG_ARCH_MSM8916
++int qpnp_get_pon_reason(char *buf, int buf_size);
++#endif
+ int qpnp_pon_set_restart_reason(enum pon_restart_reason reason);
+ bool qpnp_pon_check_hard_reset_stored(void);
+ 
+@@ -70,6 +74,12 @@ static int qpnp_pon_system_pwr_off(enum pon_power_off_type type)
+ {
+ 	return -ENODEV;
+ }
++#ifdef CONFIG_ARCH_MSM8916
++static inline int qpnp_get_pon_reason(char *buf, int buf_size)
++{
++        return -ENODEV;
++}
++#endif
+ static inline int qpnp_pon_is_warm_reset(void) { return -ENODEV; }
+ static inline int qpnp_pon_trigger_config(enum pon_trigger_source pon_src,
+ 							bool enable)

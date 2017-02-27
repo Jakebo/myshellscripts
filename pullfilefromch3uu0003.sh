@@ -6,4 +6,6 @@ if [ $# -lt 1 ]; then
     exit 1
 fi
 
-scp ch3uu0003.honeywell.com:/home/jakebo/$1 .
+for f in $@; do
+    scp -r ch3uu0003.honeywell.com:/home/jakebo/$f .
+done

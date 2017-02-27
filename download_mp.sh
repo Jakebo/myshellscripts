@@ -26,7 +26,7 @@ update_file()
     files=$@
     
     for f in $files; do
-        echo "sudo fastboot flash ${partitionMap[$f]} $f"
+        echo "sudo fastboot -i 0x0c2e flash ${partitionMap[$f]} $f"
         sudo fastboot flash ${partitionMap[$f]} $f
         if [ $? -ne 0 ]; then
             echo "ERROR: Failed to update $f"
